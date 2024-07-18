@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottonate - A Bitcoin Block Hash Lottery</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding-top: 50px; 
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        img { max-width: 277px; margin-bottom: 20px; }
+        #address, #latestHash, #lastWinner { 
+            word-break: break-all; 
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .table-summary {
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/logo.png" alt="Lottonate Logo">
+        <h1>Coordinate Bitcoin Block Lottery</h1>
+        <h3>Deposit .1 CBTC to the below address</h3>
+        <p>Deposit Address: <span id="address">Loading...</span></p>
+        <p>Latest Block Hash: <span id="latestHash">Loading...</span></p>
+        <p>Last Winner: <span id="lastWinner">Loading...</span></p>
+        <div class="table-summary" id="tableSummary"></div>
+        <div id="utxoTable"></div>
+    </div>
+    <script>
+        function getAddress() {
+            fetch('/address')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('address').textContent = data.address;
+                });
+        }
+        
+        function updateHash() {
+            fetch('/blockhash')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('latestHash').textContent = data.latestHash;
+                });
+        }
+        
+        function updateLastWinner() {
+            fetch('/last_winner')
+                .then(response => response.json())
+                .then(data => {
+                    const lastWinnerElement = document.getElementById('lastWinner');
+                    if (data.message) {
+                        lastWinnerElement.textContent = data.message;
+                    } else {
+                        lastWinnerElement.textContent = `Address: ${data.winner_address}, Prize: ${data.prize_amount} cSats`;
+                    }
+                });
+        }
+        
+        function updateUTXOTable() {
+            fetch('/utxos')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.createElement('table');
+                    const headerRow = table.insertRow();
+                    const headers = ['TXID', 'Value'];
+                    
+                    headers.forEach(headerText => {
+                        const th = document.createElement('th');
+                        th.textContent = headerText;
+                        headerRow.appendChild(th);
+                    });
+
+                    let totalBalance = 0;
+                    data.forEach(utxo => {
+                        const row = table.insertRow();
+                        const txidCell = row.insertCell();
+                        const valueCell = row.insertCell();
+                        
+                        txidCell.textContent = utxo.txid;
+                        valueCell.textContent = utxo.value;
+                        totalBalance += utxo.value;
+                    });
+
+                    const tableContainer = document.getElementById('utxoTable');
+                    tableContainer.innerHTML = '';
+                    tableContainer.appendChild(table);
+
+                    const summaryElement = document.getElementById('tableSummary');
+                    if (data.length > 0) {
+                        summaryElement.textContent = `Total entries: ${data.length}, Total balance: ${totalBalance.toFixed(8)} cSats`;
+                    } else {
+                        summaryElement.textContent = 'No entries available';
+                        const emptyRow = table.insertRow();
+                        const emptyCell = emptyRow.insertCell();
+                        emptyCell.colSpan = 2;
+                        emptyCell.textContent = 'No data available';
+                        emptyCell.style.textAlign = 'center';
+                    }
+                });
+        }
+
+        function updateAll() {
+            getAddress();
+            updateHash();
+            updateLastWinner();
+            updateUTXOTable();
+        }
+
+        // Initial update
+        updateAll();
+        
+        // Set intervals for updates
+        setInterval(updateHash, 5000);
+        setInterval(updateLastWinner, 5000);
+        setInterval(updateUTXOTable, 5000);
+    </script>
+</body>
+</html>
